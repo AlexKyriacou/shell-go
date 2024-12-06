@@ -2,8 +2,10 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -41,9 +43,28 @@ func typeCommand(args []string) {
 	}
 	if _, exists := builtins[args[0]]; exists {
 		fmt.Println(args[0] + " is a shell builtin")
+	} else if path, err := findExecutablePath(args[0]); err == nil {
+		fmt.Println(args[0], "is", path)
 	} else {
 		fmt.Println(args[0] + ": not found")
 	}
+}
+
+func findExecutablePath(target string) (string, error) {
+	pathEnv, isSet := os.LookupEnv("PATH")
+	if !isSet {
+		return "", errors.New("PATH variable is not set")
+	}
+	paths := strings.Split(pathEnv, ":")
+	for _, dir := range paths {
+		entries, _ := os.ReadDir(dir)
+		for _, entry := range entries {
+			if entry.Name() == target {
+				return filepath.Abs(filepath.Join(dir, entry.Name()))
+			}
+		}
+	}
+	return "", errors.New("executable file not found in PATH")
 }
 
 func echo(args []string) {
