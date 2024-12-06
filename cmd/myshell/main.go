@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -31,6 +32,15 @@ func main() {
 		command := strings.Split(strings.TrimSpace(commandRaw), " ")
 		if commandHandler, exists := builtins[command[0]]; exists {
 			commandHandler(command[1:])
+		} else if path, err := findExecutablePath(command[0]); err == nil {
+			cmd := exec.Command(path, command[1:]...)
+			cmd.Env = os.Environ()
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			err := cmd.Run()
+			if err != nil{
+				fmt.Println(err)
+			}
 		} else {
 			fmt.Println(command[0] + ": command not found")
 		}
@@ -55,13 +65,11 @@ func findExecutablePath(target string) (string, error) {
 	if !isSet {
 		return "", errors.New("PATH variable is not set")
 	}
-	paths := strings.Split(pathEnv, ":")
+	paths := strings.Split(pathEnv, string(os.PathListSeparator))
 	for _, dir := range paths {
-		entries, _ := os.ReadDir(dir)
-		for _, entry := range entries {
-			if entry.Name() == target {
-				return filepath.Abs(filepath.Join(dir, entry.Name()))
-			}
+		fullPath := filepath.Join(dir, target)
+		if _, err := os.Stat(fullPath); err == nil {
+			return fullPath, nil
 		}
 	}
 	return "", errors.New("executable file not found in PATH")
