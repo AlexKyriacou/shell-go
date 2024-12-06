@@ -21,6 +21,7 @@ func main() {
 		"exit": exit,
 		"type": typeCommand,
 		"pwd":  pwd,
+		"cd":   cd,
 	}
 	for {
 		fmt.Fprint(os.Stdout, "$ ")
@@ -48,6 +49,18 @@ func main() {
 	}
 }
 
+func cd(args []string) {
+	if len(args) != 1 {
+		fmt.Println("Invalid number of arguements for command cd. Expected 1, Got", len(args))
+		return
+	}
+	err := os.Chdir(args[0])
+	if err != nil {
+		fmt.Println("cd:", args[0] + ": No such file or directory")
+		return
+	}
+}
+
 func pwd(_ []string) {
 	dirPath, err := os.Getwd()
 	if err != nil {
@@ -57,8 +70,9 @@ func pwd(_ []string) {
 }
 
 func typeCommand(args []string) {
-	if len(args) > 1 {
+	if len(args) != 1 {
 		fmt.Println("Invalid number of arguements for command type. Expected 1, Got", len(args))
+		return
 	}
 	if _, exists := builtins[args[0]]; exists {
 		fmt.Println(args[0] + " is a shell builtin")
@@ -91,11 +105,11 @@ func echo(args []string) {
 func exit(args []string) {
 	if len(args) != 1 {
 		fmt.Println("Invalid number of arguements for command exit. Expected 1, Got", len(args))
-	} else {
-		exitCode, err := strconv.Atoi(args[0])
-		if err != nil {
-			fmt.Println("Invalid exit code " + args[0])
-		}
-		os.Exit(exitCode)
+		return
 	}
+	exitCode, err := strconv.Atoi(args[0])
+	if err != nil {
+		fmt.Println("Invalid exit code " + args[0])
+	}
+	os.Exit(exitCode)
 }
