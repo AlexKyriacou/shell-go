@@ -20,9 +20,12 @@ func main() {
 			fmt.Println("Error In User Input")
 		}
 		command := strings.Split(strings.TrimSpace(commandRaw), " ")
-		if command[0] == "exit" {
+		switch command[0] {
+		case "exit":
 			exit(command[1:])
-		} else {
+		case "echo":
+			fmt.Println(strings.Join(command[1:], " "))
+		default:
 			fmt.Println(command[0] + ": command not found")
 		}
 	}
@@ -34,7 +37,7 @@ func exit(args []string) {
 	} else {
 		exitCode, err := strconv.Atoi(args[0])
 		if err != nil {
-			fmt.Println("Invalid exit code" + args[0])
+			fmt.Println("Invalid exit code " + args[0])
 		}
 		os.Exit(exitCode)
 	}
