@@ -8,9 +8,16 @@ import (
 	"strings"
 )
 
-var _ = fmt.Fprint
+type Command func([]string)
+
+var builtins = make(map[string]Command)
 
 func main() {
+	builtins = map[string]Command{
+		"echo": echo,
+		"exit": exit,
+		"type": typeCommand,
+	}
 	for {
 		fmt.Fprint(os.Stdout, "$ ")
 
@@ -20,15 +27,27 @@ func main() {
 			fmt.Println("Error In User Input")
 		}
 		command := strings.Split(strings.TrimSpace(commandRaw), " ")
-		switch command[0] {
-		case "exit":
-			exit(command[1:])
-		case "echo":
-			fmt.Println(strings.Join(command[1:], " "))
-		default:
+		if commandHandler, exists := builtins[command[0]]; exists {
+			commandHandler(command[1:])
+		} else {
 			fmt.Println(command[0] + ": command not found")
 		}
 	}
+}
+
+func typeCommand(args []string) {
+	if len(args) > 1 {
+		fmt.Println("Invalid number of arguements for command type. Expected 1, Got", len(args))
+	}
+	if _, exists := builtins[args[0]]; exists {
+		fmt.Println(args[0] + " is a shell builtin")
+	} else {
+		fmt.Println(args[0] + ": not found")
+	}
+}
+
+func echo(args []string) {
+	fmt.Println(strings.Join(args, " "))
 }
 
 func exit(args []string) {
