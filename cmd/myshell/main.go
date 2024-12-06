@@ -20,6 +20,7 @@ func main() {
 		"echo": echo,
 		"exit": exit,
 		"type": typeCommand,
+		"pwd":  pwd,
 	}
 	for {
 		fmt.Fprint(os.Stdout, "$ ")
@@ -38,13 +39,21 @@ func main() {
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			err := cmd.Run()
-			if err != nil{
+			if err != nil {
 				fmt.Println(err)
 			}
 		} else {
 			fmt.Println(command[0] + ": command not found")
 		}
 	}
+}
+
+func pwd(_ []string) {
+	dirPath, err := os.Getwd()
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(dirPath)
 }
 
 func typeCommand(args []string) {
