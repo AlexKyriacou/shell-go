@@ -54,9 +54,20 @@ func cd(args []string) {
 		fmt.Println("Invalid number of arguements for command cd. Expected 1, Got", len(args))
 		return
 	}
-	err := os.Chdir(args[0])
+	var targetDir string
+	if args[0] == "~" {
+		homeDir, isSet := os.LookupEnv("HOME")
+		if !isSet {
+			fmt.Println("HOME variable is not set")
+			return
+		}
+		targetDir = homeDir
+	} else {
+		targetDir = args[0]
+	}
+	err := os.Chdir(targetDir)
 	if err != nil {
-		fmt.Println("cd:", args[0] + ": No such file or directory")
+		fmt.Println("cd:", targetDir + ": No such file or directory")
 		return
 	}
 }
