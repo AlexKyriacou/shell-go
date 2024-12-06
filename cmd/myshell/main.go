@@ -10,13 +10,15 @@ import (
 var _ = fmt.Fprint
 
 func main() {
-	fmt.Fprint(os.Stdout, "$ ")
+	for {
+		fmt.Fprint(os.Stdout, "$ ")
 
-	// Wait for user input
-	command, err := bufio.NewReader(os.Stdin).ReadString('\n')
-	if err != nil {
-		fmt.Println("Error In User Input")
+		// Wait for user input
+		command, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		if err != nil {
+			fmt.Println("Error In User Input")
+		}
+		command = strings.TrimSpace(command)
+		fmt.Println(command + ": command not found")
 	}
-	command = strings.TrimSpace(command)
-	fmt.Println(command + ": command not found")
 }
