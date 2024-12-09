@@ -1,35 +1,17 @@
-[![progress-banner](https://backend.codecrafters.io/progress/shell/664173a1-20fc-4898-a7c9-795ff16de667)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
+# Custom POSIX-Compliant Shell in Go
 
-This is a starting point for Go solutions to the
-["Build Your Own Shell" Challenge](https://app.codecrafters.io/courses/shell/overview).
+A lightweight, custom shell implementation built from scratch to explore systems programming and Go language capabilities.
 
-In this challenge, you'll build your own POSIX compliant shell that's capable of
-interpreting shell commands, running external programs and builtin commands like
-cd, pwd, echo and more. Along the way, you'll learn about shell command parsing,
-REPLs, builtin commands, and more.
+## Key Features
+- Advanced command parsing with quote and escape support
+- Built-in commands: `cd`, `pwd`, `echo`, `type`, `exit`
+- Dynamic external command execution
+- Full environment variable and path resolution
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
-
-# Passing the first stage
-
-The entry point for your `shell` implementation is in `cmd/myshell/main.go`.
-Study and uncomment the relevant code, and push your changes to pass the first
-stage:
-
-```sh
-git commit -am "pass 1st stage" # any msg
-git push origin master
+## Quick Start
+```bash
+go build .\cmd\myshell\
+./myshell.exe
 ```
 
-Time to move on to the next stage!
-
-# Stage 2 & beyond
-
-Note: This section is for stages 2 and beyond.
-
-1. Ensure you have `go (1.19)` installed locally
-1. Run `./your_program.sh` to run your program, which is implemented in
-   `cmd/myshell/main.go`.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+Built as part of the CodeCrafters Challenge to demonstrate low-level systems programming skills.
