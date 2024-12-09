@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 type Command func([]string)
@@ -31,7 +32,7 @@ func main() {
 		if err != nil {
 			fmt.Println("Error In User Input")
 		}
-		command := strings.Split(strings.TrimSpace(commandRaw), " ")
+		command := parseRawCommand(commandRaw)
 		if commandHandler, exists := builtins[command[0]]; exists {
 			commandHandler(command[1:])
 		} else if path, err := findExecutablePath(command[0]); err == nil {
@@ -47,6 +48,32 @@ func main() {
 			fmt.Println(command[0] + ": command not found")
 		}
 	}
+}
+
+func parseRawCommand(command string) []string {
+	var args []string
+	var current strings.Builder
+	inQuotes := false
+
+	for _, char := range command {
+		switch {
+		case char == '\'':
+			inQuotes = !inQuotes
+		case unicode.IsSpace(char) && !inQuotes:
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+		default:
+			current.WriteRune(char)
+		}
+	}
+
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+
+	return args
 }
 
 func cd(args []string) {
@@ -67,7 +94,7 @@ func cd(args []string) {
 	}
 	err := os.Chdir(targetDir)
 	if err != nil {
-		fmt.Println("cd:", targetDir + ": No such file or directory")
+		fmt.Println("cd:", targetDir+": No such file or directory")
 		return
 	}
 }
