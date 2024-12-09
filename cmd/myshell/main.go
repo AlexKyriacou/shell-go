@@ -24,14 +24,15 @@ func main() {
 		"pwd":  pwd,
 		"cd":   cd,
 	}
+
 	for {
 		fmt.Fprint(os.Stdout, "$ ")
 
-		// Wait for user input
 		commandRaw, err := bufio.NewReader(os.Stdin).ReadString('\n')
 		if err != nil {
 			fmt.Println("Error In User Input")
 		}
+
 		command := parseRawCommand(commandRaw)
 		if commandHandler, exists := builtins[command[0]]; exists {
 			commandHandler(command[1:])
@@ -52,58 +53,59 @@ func main() {
 
 func parseRawCommand(command string) []string {
 	var args []string
-	var current strings.Builder
+	var arg strings.Builder
 	inSingleQuotes := false
 	inDoubleQuotes := false
 	escaped := false
+
 	for _, char := range command {
 		switch {
 		case char == '\'':
 			if escaped && inDoubleQuotes {
-				current.WriteRune('\\')
+				arg.WriteRune('\\')
 			}
 			if inDoubleQuotes || escaped {
-				current.WriteRune(char)
+				arg.WriteRune(char)
 			} else {
 				inSingleQuotes = !inSingleQuotes
 			}
 			escaped = false
 		case char == '"':
 			if inSingleQuotes || escaped {
-				current.WriteRune(char)
+				arg.WriteRune(char)
 			} else {
 				inDoubleQuotes = !inDoubleQuotes
 			}
 			escaped = false
 		case char == '\\':
 			if inSingleQuotes || escaped {
-				current.WriteRune(char)
+				arg.WriteRune(char)
 				escaped = false
 			} else {
 				escaped = true
 			}
 		case unicode.IsSpace(char):
 			if escaped && (inDoubleQuotes || inSingleQuotes){
-				current.WriteRune('\\')
+				arg.WriteRune('\\')
 			}
 			if inSingleQuotes || inDoubleQuotes || escaped {
-				current.WriteRune(char)
-			} else if current.Len() > 0 {
-				args = append(args, current.String())
-				current.Reset()
+				arg.WriteRune(char)
+			} else if arg.Len() > 0 {
+				args = append(args, arg.String())
+				arg.Reset()
 			}
 			escaped = false
 		default:
 			if escaped && inDoubleQuotes {
-				current.WriteRune('\\')
+				arg.WriteRune('\\')
 			}
-			current.WriteRune(char)
+			arg.WriteRune(char)
 			escaped = false
 		}
 	}
 
-	if current.Len() > 0 {
-		args = append(args, current.String())
+	if arg.Len() > 0 {
+		args = append(args, arg.String())
 	}
 
 	return args
@@ -114,6 +116,7 @@ func cd(args []string) {
 		fmt.Println("Invalid number of arguements for command cd. Expected 1, Got", len(args))
 		return
 	}
+
 	var targetDir string
 	if args[0] == "~" {
 		homeDir, isSet := os.LookupEnv("HOME")
@@ -125,6 +128,7 @@ func cd(args []string) {
 	} else {
 		targetDir = args[0]
 	}
+
 	err := os.Chdir(targetDir)
 	if err != nil {
 		fmt.Println("cd:", targetDir+": No such file or directory")
@@ -145,6 +149,7 @@ func typeCommand(args []string) {
 		fmt.Println("Invalid number of arguements for command type. Expected 1, Got", len(args))
 		return
 	}
+
 	if _, exists := builtins[args[0]]; exists {
 		fmt.Println(args[0] + " is a shell builtin")
 	} else if path, err := findExecutablePath(args[0]); err == nil {
@@ -159,6 +164,7 @@ func findExecutablePath(target string) (string, error) {
 	if !isSet {
 		return "", errors.New("PATH variable is not set")
 	}
+
 	paths := strings.Split(pathEnv, string(os.PathListSeparator))
 	for _, dir := range paths {
 		fullPath := filepath.Join(dir, target)
@@ -166,6 +172,7 @@ func findExecutablePath(target string) (string, error) {
 			return fullPath, nil
 		}
 	}
+
 	return "", errors.New("executable file not found in PATH")
 }
 
@@ -178,9 +185,11 @@ func exit(args []string) {
 		fmt.Println("Invalid number of arguements for command exit. Expected 1, Got", len(args))
 		return
 	}
+
 	exitCode, err := strconv.Atoi(args[0])
 	if err != nil {
 		fmt.Println("Invalid exit code " + args[0])
 	}
+	
 	os.Exit(exitCode)
 }
