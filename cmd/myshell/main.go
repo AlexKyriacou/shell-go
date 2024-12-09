@@ -58,23 +58,42 @@ func parseRawCommand(command string) []string {
 	escaped := false
 	for _, char := range command {
 		switch {
-		case char == '\'' && !inDoubleQuotes && !escaped:
-			inSingleQuotes = !inSingleQuotes
-		case char == '"' && !escaped:
-			inDoubleQuotes = !inDoubleQuotes
-		case char == '\\':
-			escaped = true
-		case unicode.IsSpace(char) && !(inSingleQuotes || inDoubleQuotes) && !escaped:
-			if current.Len() > 0 {
-				args = append(args, current.String())
-				current.Reset()
+		case char == '\'':
+			if inDoubleQuotes {
+				current.WriteRune(char)
+			} else {
+				inSingleQuotes = !inSingleQuotes
 			}
-		default:
-			if escaped && !strings.ContainsRune("$`\"\\", char) && inDoubleQuotes {
-				current.WriteRune('\\')
-			}
-			current.WriteRune(char)
 			escaped = false
+		case char == '\\':
+			if inSingleQuotes {
+				current.WriteRune(char)
+			} else {
+				escaped = true
+			}
+		case char == '"':
+			if inSingleQuotes || escaped {
+				current.WriteRune(char)
+			} else {
+				inDoubleQuotes = !inDoubleQuotes
+			}
+			escaped = false
+		default:
+			if escaped {
+				if inDoubleQuotes && !strings.ContainsRune("$`\"\\", char) {
+					current.WriteRune('\\')
+				}
+				current.WriteRune(char)
+				escaped = false
+			} else if unicode.IsSpace(char) && !(inSingleQuotes || inDoubleQuotes) {
+				if current.Len() > 0 {
+					args = append(args, current.String())
+					current.Reset()
+				}
+			} else {
+				current.WriteRune(char)
+				escaped = false
+			}
 		}
 	}
 
