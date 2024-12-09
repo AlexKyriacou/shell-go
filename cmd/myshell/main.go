@@ -55,6 +55,7 @@ func parseRawCommand(command string) []string {
 	var current strings.Builder
 	inSingleQuotes := false
 	inDoubleQuotes := false
+	outsideQuotesAreSingleQuotes := true
 	escaped := false
 	for _, char := range command {
 		switch {
@@ -62,19 +63,27 @@ func parseRawCommand(command string) []string {
 			if inDoubleQuotes {
 				current.WriteRune(char)
 			} else {
-				inSingleQuotes = !inSingleQuotes
+				outsideQuotesAreSingleQuotes = true
 			}
+			inSingleQuotes = !inSingleQuotes
 			escaped = false
 		case char == '\\':
-			if inSingleQuotes {
+			if inSingleQuotes || escaped {
 				current.WriteRune(char)
+				escaped = false
 			} else {
 				escaped = true
 			}
 		case char == '"':
+			if inSingleQuotes && !outsideQuotesAreSingleQuotes {
+				inSingleQuotes = false
+			}
 			if inSingleQuotes || escaped {
 				current.WriteRune(char)
 			} else {
+				if !inSingleQuotes{
+					outsideQuotesAreSingleQuotes = false
+				}
 				inDoubleQuotes = !inDoubleQuotes
 			}
 			escaped = false
