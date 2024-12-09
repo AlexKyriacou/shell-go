@@ -53,19 +53,28 @@ func main() {
 func parseRawCommand(command string) []string {
 	var args []string
 	var current strings.Builder
-	inQuotes := false
-
+	inSingleQuotes := false
+	inDoubleQuotes := false
+	escaped := false
 	for _, char := range command {
 		switch {
-		case char == '\'':
-			inQuotes = !inQuotes
-		case unicode.IsSpace(char) && !inQuotes:
+		case char == '\'' && !inDoubleQuotes && !escaped:
+			inSingleQuotes = !inSingleQuotes
+		case char == '"' && !escaped:
+			inDoubleQuotes = !inDoubleQuotes
+		case char == '\\':
+			escaped = true
+		case unicode.IsSpace(char) && !(inSingleQuotes || inDoubleQuotes):
 			if current.Len() > 0 {
 				args = append(args, current.String())
 				current.Reset()
 			}
 		default:
+			if escaped && !strings.ContainsRune("$`\"\\", char) {
+				current.WriteRune('\\')
+			}
 			current.WriteRune(char)
+			escaped = false
 		}
 	}
 
