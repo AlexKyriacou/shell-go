@@ -64,13 +64,13 @@ func parseRawCommand(command string) []string {
 			inDoubleQuotes = !inDoubleQuotes
 		case char == '\\':
 			escaped = true
-		case unicode.IsSpace(char) && !(inSingleQuotes || inDoubleQuotes):
+		case unicode.IsSpace(char) && !(inSingleQuotes || inDoubleQuotes) && !escaped:
 			if current.Len() > 0 {
 				args = append(args, current.String())
 				current.Reset()
 			}
 		default:
-			if escaped && !strings.ContainsRune("$`\"\\", char) {
+			if escaped && !strings.ContainsRune("$`\"\\", char) && inDoubleQuotes {
 				current.WriteRune('\\')
 			}
 			current.WriteRune(char)
