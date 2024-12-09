@@ -55,17 +55,25 @@ func parseRawCommand(command string) []string {
 	var current strings.Builder
 	inSingleQuotes := false
 	inDoubleQuotes := false
-	outsideQuotesAreSingleQuotes := true
 	escaped := false
 	for _, char := range command {
 		switch {
 		case char == '\'':
-			if inDoubleQuotes {
+			if escaped && inDoubleQuotes {
+				current.WriteRune('\\')
+			}
+			if inDoubleQuotes || escaped {
 				current.WriteRune(char)
 			} else {
-				outsideQuotesAreSingleQuotes = true
+				inSingleQuotes = !inSingleQuotes
 			}
-			inSingleQuotes = !inSingleQuotes
+			escaped = false
+		case char == '"':
+			if inSingleQuotes || escaped {
+				current.WriteRune(char)
+			} else {
+				inDoubleQuotes = !inDoubleQuotes
+			}
 			escaped = false
 		case char == '\\':
 			if inSingleQuotes || escaped {
@@ -74,35 +82,23 @@ func parseRawCommand(command string) []string {
 			} else {
 				escaped = true
 			}
-		case char == '"':
-			if inSingleQuotes && !outsideQuotesAreSingleQuotes {
-				inSingleQuotes = false
+		case unicode.IsSpace(char):
+			if escaped && (inDoubleQuotes || inSingleQuotes){
+				current.WriteRune('\\')
 			}
-			if inSingleQuotes || escaped {
+			if inSingleQuotes || inDoubleQuotes || escaped {
 				current.WriteRune(char)
-			} else {
-				if !inSingleQuotes{
-					outsideQuotesAreSingleQuotes = false
-				}
-				inDoubleQuotes = !inDoubleQuotes
+			} else if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
 			}
 			escaped = false
 		default:
-			if escaped {
-				if inDoubleQuotes && !strings.ContainsRune("$`\"\\", char) {
-					current.WriteRune('\\')
-				}
-				current.WriteRune(char)
-				escaped = false
-			} else if unicode.IsSpace(char) && !(inSingleQuotes || inDoubleQuotes) {
-				if current.Len() > 0 {
-					args = append(args, current.String())
-					current.Reset()
-				}
-			} else {
-				current.WriteRune(char)
-				escaped = false
+			if escaped && inDoubleQuotes {
+				current.WriteRune('\\')
 			}
+			current.WriteRune(char)
+			escaped = false
 		}
 	}
 
