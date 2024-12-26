@@ -206,6 +206,9 @@ func (command Command) hasInputRedirection() bool {
 		">",
 		"1>",
 		"2>",
+		">>",
+		"1>>",
+		"2>>",
 	}
 	if len(command) < 2 {
 		return false
@@ -222,32 +225,44 @@ func (command Command) hasInputRedirection() bool {
 	return false
 }
 
-func (command Command) redirectInput() (e error) {
-	if len(command) < 2 {
-		return
-	}
-	redirectOp := command[len(command)-2]
-	targetPath := command[len(command)-1]
-	// Create parent directories if they don't exist
-	ensureDir(targetPath)
+func (command Command) redirectInput() error {
+    if len(command) < 2 {
+        return nil
+    }
+    
+    redirectOp := command[len(command)-2]
+    targetPath := command[len(command)-1]
+    ensureDir(targetPath)
 
-	switch redirectOp {
-	case ">", "1>":
-		file, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-		if err != nil {
-			fmt.Println("Error opening file:", err)
-			return err
-		}
-		os.Stdout = file
-	case "2>":
-		file, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-		if err != nil {
-			fmt.Println("Error opening file:", err)
-			return err
-		}
-		os.Stderr = file
-	}
-	return nil
+    // Determine file flags and target based on operation
+    var (
+        flags int
+        target **os.File
+    )
+
+    // Set flags based on whether it's append mode
+    if strings.HasSuffix(redirectOp, ">>") {
+        flags = os.O_WRONLY | os.O_CREATE | os.O_APPEND
+    } else {
+        flags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+    }
+
+    // Set target based on whether it's stderr
+    if strings.HasPrefix(redirectOp, "2") {
+        target = &os.Stderr
+    } else {
+        target = &os.Stdout
+    }
+
+    // Open file and set target
+    file, err := os.OpenFile(targetPath, flags, 0644)
+    if err != nil {
+        fmt.Println("Error opening file:", err)
+        return err
+    }
+    *target = file
+
+    return nil
 }
 
 func ensureDir(fileName string) {
