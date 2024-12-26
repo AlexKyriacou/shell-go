@@ -12,12 +12,14 @@ import (
 	"unicode"
 )
 
-type Command func([]string)
+type CommandHandler func([]string)
 
-var builtins = make(map[string]Command)
+type Command []string
+
+var builtins = make(map[string]CommandHandler)
 
 func main() {
-	builtins = map[string]Command{
+	builtins = map[string]CommandHandler{
 		"echo": echo,
 		"exit": exit,
 		"type": typeCommand,
@@ -33,7 +35,12 @@ func main() {
 			fmt.Println("Error In User Input")
 		}
 
-		command := parseRawCommand(commandRaw)
+		var command Command = parseRawCommand(commandRaw)
+		originalStdout := os.Stdout
+		if command.hasInputRedirection() {
+			command.redirectInput()
+			command = command[:len(command)-2]
+		}
 		if commandHandler, exists := builtins[command[0]]; exists {
 			commandHandler(command[1:])
 		} else if path, err := findExecutablePath(command[0]); err == nil {
@@ -41,13 +48,11 @@ func main() {
 			cmd.Env = os.Environ()
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
-			err := cmd.Run()
-			if err != nil {
-				fmt.Println(err)
-			}
+			cmd.Run()
 		} else {
 			fmt.Println(command[0] + ": command not found")
 		}
+		os.Stdout = originalStdout 
 	}
 }
 
@@ -85,7 +90,7 @@ func parseRawCommand(command string) []string {
 				escaped = true
 			}
 		case unicode.IsSpace(char):
-			if escaped && (inDoubleQuotes || inSingleQuotes){
+			if escaped && (inDoubleQuotes || inSingleQuotes) {
 				arg.WriteRune('\\')
 			}
 			if inSingleQuotes || inDoubleQuotes || escaped {
@@ -190,6 +195,54 @@ func exit(args []string) {
 	if err != nil {
 		fmt.Println("Invalid exit code " + args[0])
 	}
-	
+
 	os.Exit(exitCode)
+}
+
+func (command Command) hasInputRedirection() bool {
+	if len(command) < 2 {
+		return false
+	}
+	inputRedirectionArguement := command[len(command)-2]
+	if len(inputRedirectionArguement) < 1 {
+		return false
+	}
+	if inputRedirectionArguement == ">" || inputRedirectionArguement == "1>"{
+		return true
+	}
+	return false
+}
+
+func (command Command) redirectInput() (e error) {
+    if len(command) < 2 {
+        return
+    }
+    redirectOp := command[len(command)-2]
+    targetPath := command[len(command)-1]
+    
+    if redirectOp == ">" || redirectOp == "1>" {
+        // Create parent directories if they don't exist
+        ensureDir(targetPath)
+        
+        // Open file for writing, create if doesn't exist, truncate if exists
+        file, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+        if err != nil {
+            fmt.Println("Error opening file:", err)
+            return err
+        }
+        
+        // Set stdout to our new file
+        os.Stdout = file
+    }
+    return nil
+}
+
+func ensureDir(fileName string) {
+  dirName := filepath.Dir(fileName)
+  if _, serr := os.Stat(dirName); serr != nil {
+    merr := os.MkdirAll(dirName, os.ModePerm)
+    if merr != nil {
+        panic(merr)
+    }
+  }
 }
