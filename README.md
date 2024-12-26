@@ -7,6 +7,7 @@ A lightweight, custom shell implementation built from scratch to explore systems
 - Built-in commands: `cd`, `pwd`, `echo`, `type`, `exit`
 - Dynamic external command execution
 - Full environment variable and path resolution
+- Stdout and Stderr redirection with file appending
 
 ## Quick Start
 ```bash
