@@ -37,6 +37,7 @@ func main() {
 
 		var command Command = parseRawCommand(commandRaw)
 		originalStdout := os.Stdout
+		originalStErr := os.Stderr
 		if command.hasInputRedirection() {
 			command.redirectInput()
 			command = command[:len(command)-2]
@@ -52,7 +53,8 @@ func main() {
 		} else {
 			fmt.Println(command[0] + ": command not found")
 		}
-		os.Stdout = originalStdout 
+		os.Stdout = originalStdout
+		os.Stderr = originalStErr
 	}
 }
 
@@ -200,6 +202,11 @@ func exit(args []string) {
 }
 
 func (command Command) hasInputRedirection() bool {
+	inputRedirectionOperators := []string{
+		">",
+		"1>",
+		"2>",
+	}
 	if len(command) < 2 {
 		return false
 	}
@@ -207,42 +214,48 @@ func (command Command) hasInputRedirection() bool {
 	if len(inputRedirectionArguement) < 1 {
 		return false
 	}
-	if inputRedirectionArguement == ">" || inputRedirectionArguement == "1>"{
-		return true
+	for _, operator := range inputRedirectionOperators {
+		if operator == inputRedirectionArguement {
+			return true
+		}
 	}
 	return false
 }
 
 func (command Command) redirectInput() (e error) {
-    if len(command) < 2 {
-        return
-    }
-    redirectOp := command[len(command)-2]
-    targetPath := command[len(command)-1]
-    
-    if redirectOp == ">" || redirectOp == "1>" {
-        // Create parent directories if they don't exist
-        ensureDir(targetPath)
-        
-        // Open file for writing, create if doesn't exist, truncate if exists
-        file, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-        if err != nil {
-            fmt.Println("Error opening file:", err)
-            return err
-        }
-        
-        // Set stdout to our new file
-        os.Stdout = file
-    }
-    return nil
+	if len(command) < 2 {
+		return
+	}
+	redirectOp := command[len(command)-2]
+	targetPath := command[len(command)-1]
+	// Create parent directories if they don't exist
+	ensureDir(targetPath)
+
+	switch redirectOp {
+	case ">", "1>":
+		file, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			fmt.Println("Error opening file:", err)
+			return err
+		}
+		os.Stdout = file
+	case "2>":
+		file, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			fmt.Println("Error opening file:", err)
+			return err
+		}
+		os.Stderr = file
+	}
+	return nil
 }
 
 func ensureDir(fileName string) {
-  dirName := filepath.Dir(fileName)
-  if _, serr := os.Stat(dirName); serr != nil {
-    merr := os.MkdirAll(dirName, os.ModePerm)
-    if merr != nil {
-        panic(merr)
-    }
-  }
+	dirName := filepath.Dir(fileName)
+	if _, serr := os.Stat(dirName); serr != nil {
+		merr := os.MkdirAll(dirName, os.ModePerm)
+		if merr != nil {
+			panic(merr)
+		}
+	}
 }
