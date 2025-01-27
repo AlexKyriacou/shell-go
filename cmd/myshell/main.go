@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
+	"golang.org/x/term"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,9 +16,9 @@ type CommandHandler func([]string)
 
 type Command []string
 
-var builtins = make(map[string]CommandHandler)
+var builtins map[string]CommandHandler
 
-func main() {
+func init() {
 	builtins = map[string]CommandHandler{
 		"echo": echo,
 		"exit": exit,
@@ -26,16 +26,51 @@ func main() {
 		"pwd":  pwd,
 		"cd":   cd,
 	}
+}
+
+func main() {
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		panic(err)
+	}
+	defer term.Restore(int(os.Stdin.Fd()), oldState)
 
 	for {
 		fmt.Fprint(os.Stdout, "$ ")
 
-		commandRaw, err := bufio.NewReader(os.Stdin).ReadString('\n')
-		if err != nil {
-			fmt.Println("Error In User Input")
+		var commandRaw []byte
+		buf := make([]byte, 1)
+	readLoop:
+		for {
+			os.Stdin.Read(buf)
+			switch buf[0] {
+			case 3: // Ctrl+C
+				return
+			case 127, 8: // Backspace (127) or Ctrl+H (8)
+				if len(commandRaw) > 0 {
+					// Remove last character from input
+					commandRaw = commandRaw[:len(commandRaw)-1]
+					// Move cursor back, print space, move cursor back again
+					fmt.Print("\b \b")
+				}
+			case 13: // Enter
+				fmt.Println()
+				break readLoop
+			case 9: // Tab
+				autocompleteMatches := autoCompleteCommand(commandRaw)
+				commandRaw = []byte(autocompleteMatches[0])
+				fmt.Printf("\r%*s\r", len(commandRaw), "")
+				fmt.Print("$ " + string(commandRaw) + " ")
+				continue
+			default:
+				if buf[0] >= 32 && buf[0] <= 126 { // printable characters
+					commandRaw = append(commandRaw, buf[0])
+					fmt.Print(string(buf[0]))
+				}
+			}
 		}
 
-		var command Command = parseRawCommand(commandRaw)
+		var command Command = parseRawCommand(string(commandRaw))
 		originalStdout := os.Stdout
 		originalStErr := os.Stderr
 		if command.hasInputRedirection() {
@@ -56,6 +91,16 @@ func main() {
 		os.Stdout = originalStdout
 		os.Stderr = originalStErr
 	}
+}
+
+func autoCompleteCommand(commandRaw []byte) []string {
+	var matches []string
+	for builtinName := range builtins {
+		if strings.HasPrefix(builtinName, string(commandRaw)) {
+			matches = append(matches, builtinName)
+		}
+	}
+	return matches
 }
 
 func parseRawCommand(command string) []string {
@@ -226,43 +271,49 @@ func (command Command) hasInputRedirection() bool {
 }
 
 func (command Command) redirectInput() error {
-    if len(command) < 2 {
-        return nil
-    }
-    
-    redirectOp := command[len(command)-2]
-    targetPath := command[len(command)-1]
-    ensureDir(targetPath)
+	if len(command) < 2 {
+		return nil
+	}
 
-    // Determine file flags and target based on operation
-    var (
-        flags int
-        target **os.File
-    )
+	redirectOp := command[len(command)-2]
+	targetPath := command[len(command)-1]
+	ensureDir(targetPath)
 
-    // Set flags based on whether it's append mode
-    if strings.HasSuffix(redirectOp, ">>") {
-        flags = os.O_WRONLY | os.O_CREATE | os.O_APPEND
-    } else {
-        flags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
-    }
+	// Determine file flags and target based on operation
+	var (
+		flags  int
+		target **os.File
+	)
 
-    // Set target based on whether it's stderr
-    if strings.HasPrefix(redirectOp, "2") {
-        target = &os.Stderr
-    } else {
-        target = &os.Stdout
-    }
+	// Set flags based on whether it's append mode
+	if strings.HasSuffix(redirectOp, ">>") {
+		flags = os.O_WRONLY | os.O_CREATE | os.O_APPEND
+	} else {
+		flags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+	}
 
-    // Open file and set target
-    file, err := os.OpenFile(targetPath, flags, 0644)
-    if err != nil {
-        fmt.Println("Error opening file:", err)
-        return err
-    }
-    *target = file
+	// Set target based on whether it's stderr
+	if strings.HasPrefix(redirectOp, "2") {
+		target = &os.Stderr
+	} else {
+		target = &os.Stdout
+	}
 
-    return nil
+	// Open file and set target
+	file, err := os.OpenFile(targetPath, flags, 0644)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return err
+	}
+	*target = file
+
+	// Ensure the file is closed at the end of the command execution
+	defer func() {
+		file.Close()
+	}()
+
+	// Even if there's no output, the file is now created or updated
+	return nil
 }
 
 func ensureDir(fileName string) {
